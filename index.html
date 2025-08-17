@@ -207,10 +207,10 @@
       <thead>
         <tr>
           <th>Time</th>
-          <th>Ping (ms)</th>
-          <th>Loss (%)</th>
-          <th>Jitter (ms)</th>
-          <th>Download (Mbps)</th>
+          <th>Ping</th>
+          <th>Loss</th>
+          <th>Jitter</th>
+          <th>Download</th>
         </tr>
       </thead>
       <tbody id="resultsBody"></tbody>
@@ -331,7 +331,6 @@ function drawSpeedometer(speedMbps=0){
   ctx.fillText(`${speedMbps} Mbps`, centerX, centerY - radius/2 - 10);
 }
 
-// Ping/loss/jitter test
 // Ping/loss/jitter test with standard timeout
 async function testPingLossJitter(count=25, timeoutMs=600){
   let pings = [], lost = 0;
@@ -342,7 +341,6 @@ async function testPingLossJitter(count=25, timeoutMs=600){
     const start = performance.now();
     
     try {
-      // Promise.race ensures timeout
       await Promise.race([
         fetch("https://www.cloudflare.com/cdn-cgi/trace?rand="+Math.random(), {cache:"no-store"}),
         new Promise((_, reject) => setTimeout(() => reject("timeout"), timeoutMs))
@@ -367,7 +365,6 @@ async function testPingLossJitter(count=25, timeoutMs=600){
 
   return { ping: avgPing, loss, jitter };
 }
-
 
 // Download test
 async function testDownload(durationMs=18000){
@@ -430,19 +427,19 @@ async function runSpeedTest(){
 
   statusEl.textContent = "Test complete ✔";
   const row = document.createElement("tr");
+  const timeStr = new Date().toLocaleTimeString([], {hour12:false, hour:'2-digit', minute:'2-digit'});
   row.innerHTML = `
-    <td>${new Date().toLocaleTimeString()}</td>
-    <td>${ping}</td>
-    <td>${loss}</td>
-    <td>${jitter}</td>
-    <td style="color:${download>50?'#fef08a':'inherit'}">${download}</td>
+    <td>${timeStr}</td>
+    <td>${ping} ms</td>
+    <td>${loss} %</td>
+    <td>${jitter} ms</td>
+    <td style="color:${download>50?'#fef08a':'inherit'}">${download} Mbps</td>
   `;
   resultsBody.appendChild(row);
 
   bar.style.transition="width 0.3s ease";
   bar.style.width="0%";
   
-  // Reset speedometer to 0
   drawSpeedometer(0);
 
   rerunBtn.disabled = false;
