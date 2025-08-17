@@ -427,7 +427,16 @@ async function runSpeedTest(){
 
   statusEl.textContent = "Test complete ✔";
   const row = document.createElement("tr");
-  const timeStr = new Date().toLocaleTimeString([], {hour12:false, hour:'2-digit', minute:'2-digit'});
+const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+row.innerHTML = `
+  <td>${timeStr}</td>
+  <td>${ping} ms</td>
+  <td>${loss} %</td>
+  <td>${jitter} ms</td>
+  <td style="color:${download>50?'#fef08a':'inherit'}">${download} Mbps</td>
+`;
+resultsBody.appendChild(row);
+
   row.innerHTML = `
     <td>${timeStr}</td>
     <td>${ping} ms</td>
