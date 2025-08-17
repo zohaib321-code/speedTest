@@ -332,26 +332,42 @@ function drawSpeedometer(speedMbps=0){
 }
 
 // Ping/loss/jitter test
-async function testPingLossJitter(count=25){
-  let pings=[], lost=0;
-  for(let i=0;i<count;i++){
-    liveProgress.textContent=`Pinging${'.'.repeat(i%3+1)}`;
-    const start=performance.now();
-    try{
-      await fetch("https://www.cloudflare.com/cdn-cgi/trace?rand="+Math.random(),{cache:"no-store"});
-      pings.push(performance.now()-start);
-    }catch{ lost++; }
+// Ping/loss/jitter test with standard timeout
+async function testPingLossJitter(count=25, timeoutMs=500){
+  let pings = [], lost = 0;
+
+  for(let i=0; i<count; i++){
+    liveProgress.textContent = `Pinging${'.'.repeat(i%3+1)}`;
+
+    const start = performance.now();
+    
+    try {
+      // Promise.race ensures timeout
+      await Promise.race([
+        fetch("https://www.cloudflare.com/cdn-cgi/trace?rand="+Math.random(), {cache:"no-store"}),
+        new Promise((_, reject) => setTimeout(() => reject("timeout"), timeoutMs))
+      ]);
+      const elapsed = performance.now() - start;
+      pings.push(elapsed);
+    } catch {
+      lost++;
+    }
   }
-  let avgPing=pings.length?(pings.reduce((a,b)=>a+b,0)/pings.length).toFixed(1):"N/A";
-  let jitter="N/A";
-  if(pings.length>1){
-    let diffs=[];
-    for(let i=1;i<pings.length;i++) diffs.push(Math.abs(pings[i]-pings[i-1]));
-    jitter=(diffs.reduce((a,b)=>a+b,0)/diffs.length).toFixed(1);
+
+  let avgPing = pings.length ? (pings.reduce((a,b)=>a+b,0)/pings.length).toFixed(1) : "N/A";
+
+  let jitter = "N/A";
+  if(pings.length > 1){
+    let diffs = [];
+    for(let i=1; i<pings.length; i++) diffs.push(Math.abs(pings[i] - pings[i-1]));
+    jitter = (diffs.reduce((a,b)=>a+b,0)/diffs.length).toFixed(1);
   }
-  let loss=((lost/count)*100).toFixed(0);
-  return {ping:avgPing,loss,jitter};
+
+  let loss = ((lost/count)*100).toFixed(0);
+
+  return { ping: avgPing, loss, jitter };
 }
+
 
 // Download test
 async function testDownload(durationMs=18000){
