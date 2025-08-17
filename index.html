@@ -208,7 +208,8 @@
         <tr>
           <th>Time</th>
           <th>Ping</th>
-          <th>Loss</th>
+          <th>Loss (baseline)</th>
+          <th>Loss (download)</th>
           <th>Jitter</th>
           <th>Download</th>
         </tr>
@@ -253,7 +254,7 @@ function animateProgress(durationMs,onDone){
   requestAnimationFrame(step);
 }
 
-// Draw speedometer with marks
+// Draw speedometer
 function drawSpeedometer(speedMbps=0){
   const width = speedometer.width;
   const height = speedometer.height;
@@ -263,7 +264,6 @@ function drawSpeedometer(speedMbps=0){
   const maxSpeed = 50;
   ctx.clearRect(0,0,width,height);
 
-  // Background arc
   ctx.beginPath();
   ctx.arc(centerX, centerY, radius, Math.PI, 2*Math.PI);
   ctx.lineWidth = 12;
@@ -271,7 +271,6 @@ function drawSpeedometer(speedMbps=0){
   ctx.lineCap = "round";
   ctx.stroke();
 
-  // Tick marks
   ctx.strokeStyle = "#3b82f6";
   ctx.lineWidth = 2;
   ctx.font = "12px Arial";
@@ -290,8 +289,6 @@ function drawSpeedometer(speedMbps=0){
     ctx.moveTo(x1,y1);
     ctx.lineTo(x2,y2);
     ctx.stroke();
-
-    // Label every 10 Mbps
     if(i % 10 === 0){
       const lx = centerX + (radius - 20)*Math.cos(angle);
       const ly = centerY + (radius - 20)*Math.sin(angle)-5;
@@ -299,7 +296,6 @@ function drawSpeedometer(speedMbps=0){
     }
   }
 
-  // Speed arc
   const angle = Math.PI + (Math.min(speedMbps,maxSpeed)/maxSpeed)*Math.PI;
   ctx.beginPath();
   ctx.arc(centerX, centerY, radius, Math.PI, angle);
@@ -308,7 +304,6 @@ function drawSpeedometer(speedMbps=0){
   ctx.lineCap = "round";
   ctx.stroke();
 
-  // Needle
   const needleLength = radius - 5;
   ctx.beginPath();
   ctx.moveTo(centerX, centerY);
@@ -318,28 +313,23 @@ function drawSpeedometer(speedMbps=0){
   ctx.lineCap = "round";
   ctx.stroke();
 
-  // Center pin
   ctx.beginPath();
   ctx.arc(centerX, centerY, 5, 0, 2*Math.PI);
   ctx.fillStyle = "#3b82f6";
   ctx.fill();
 
-  // Speed text below needle
   ctx.font = "16px Arial";
   ctx.fillStyle = "#3b82f6";
   ctx.textAlign = "center";
   ctx.fillText(`${speedMbps} Mbps`, centerX, centerY - radius/2 - 10);
 }
 
-// Ping/loss/jitter test with standard timeout
+// Ping/loss/jitter test
 async function testPingLossJitter(count=25, timeoutMs=600){
   let pings = [], lost = 0;
-
-  for(let i=0; i<count; i++){
+  for(let i=0;i<count;i++){
     liveProgress.textContent = `Pinging${'.'.repeat(i%3+1)}`;
-
     const start = performance.now();
-    
     try {
       await Promise.race([
         fetch("https://www.cloudflare.com/cdn-cgi/trace?rand="+Math.random(), {cache:"no-store"}),
@@ -351,27 +341,24 @@ async function testPingLossJitter(count=25, timeoutMs=600){
       lost++;
     }
   }
-
-  let avgPing = pings.length ? (pings.reduce((a,b)=>a+b,0)/pings.length).toFixed(1) : "N/A";
-
+  let avgPing = pings.length ? (pings.reduce((a,b)=>a+b,0)/pings.length).toFixed(1) + " ms" : "N/A";
   let jitter = "N/A";
-  if(pings.length > 1){
+  if(pings.length>1){
     let diffs = [];
-    for(let i=1; i<pings.length; i++) diffs.push(Math.abs(pings[i] - pings[i-1]));
-    jitter = (diffs.reduce((a,b)=>a+b,0)/diffs.length).toFixed(1);
+    for(let i=1;i<pings.length;i++) diffs.push(Math.abs(pings[i]-pings[i-1]));
+    jitter = (diffs.reduce((a,b)=>a+b,0)/diffs.length).toFixed(1) + " ms";
   }
-
-  let loss = ((lost/count)*100).toFixed(0);
-
-  return { ping: avgPing, loss, jitter };
+  let loss = ((lost/count)*100).toFixed(0) + " %";
+  return {ping: avgPing, loss, jitter};
 }
 
-// Download test
-async function testDownload(durationMs=18000){
+// Download test with packet loss tracking
+async function testDownload(durationMs=18000, timeoutMs=600){
   return new Promise(resolve=>{
     let url="https://speed.cloudflare.com/__down?bytes=50000000&nocache="+Math.random();
     let controller=new AbortController();
     let bytesReceived=0;
+    let lostChunks=0;
     let startTime=performance.now();
 
     fetch(url,{signal:controller.signal}).then(response=>{
@@ -379,7 +366,10 @@ async function testDownload(durationMs=18000){
       function pump(){
         reader.read().then(({done,value})=>{
           if(done) return;
+          const chunkStart = performance.now();
           bytesReceived+=value.length;
+          const elapsedChunk = performance.now() - chunkStart;
+          if(elapsedChunk>timeoutMs) lostChunks++;
           let elapsed=(performance.now()-startTime)/1000;
           let mbps = ((bytesReceived*8)/(elapsed*1000000)).toFixed(2);
           liveProgress.textContent=`Downloading… ${(bytesReceived/(1024*1024)).toFixed(2)} MB`;
@@ -395,7 +385,8 @@ async function testDownload(durationMs=18000){
       let elapsed=(performance.now()-startTime)/1000;
       let mbps=((bytesReceived*8)/(elapsed*1000000)).toFixed(2);
       drawSpeedometer(Number(mbps));
-      resolve(mbps);
+      let lossDownload = ((lostChunks/Math.max(bytesReceived/1024,1))*100).toFixed(0) + " %";
+      resolve({mbps, lossDownload});
     },durationMs);
   });
 }
@@ -419,30 +410,24 @@ async function runSpeedTest(){
   bar.style.width="0%";
   drawSpeedometer(0);
 
-  const {ping,loss,jitter} = await testPingLossJitter();
+  const baseline = await testPingLossJitter();
   let downloadPromise = testDownload(18000);
   animateProgress(17000);
-
-  const download = await downloadPromise;
+  const downloadResult = await downloadPromise;
 
   statusEl.textContent = "Test complete ✔";
-  const row = document.createElement("tr");
-const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-row.innerHTML = `
-  <td>${timeStr}</td>
-  <td>${ping} ms</td>
-  <td>${loss} %</td>
-  <td>${jitter} ms</td>
-  <td style="color:${download>50?'#fef08a':'inherit'}">${download} Mbps</td>
-`;
-resultsBody.appendChild(row);
 
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12:true});
+
+  const row = document.createElement("tr");
   row.innerHTML = `
     <td>${timeStr}</td>
-    <td>${ping} ms</td>
-    <td>${loss} %</td>
-    <td>${jitter} ms</td>
-    <td style="color:${download>50?'#fef08a':'inherit'}">${download} Mbps</td>
+    <td>${baseline.ping}</td>
+    <td>${baseline.loss}</td>
+    <td>${downloadResult.lossDownload}</td>
+    <td>${baseline.jitter}</td>
+    <td style="color:${downloadResult.mbps>50?'#fef08a':'inherit'}">${downloadResult.mbps} Mbps</td>
   `;
   resultsBody.appendChild(row);
 
@@ -450,19 +435,16 @@ resultsBody.appendChild(row);
   bar.style.width="0%";
   
   drawSpeedometer(0);
-
   rerunBtn.disabled = false;
   startCountdown();
 }
 
-// Run now button
 rerunBtn.addEventListener("click", () => {
   clearInterval(countdownTimer);
   countdownEl.textContent = `Next test in 0s`;
   runSpeedTest();
 });
 
-// Initial run
 runSpeedTest();
 </script>
 
