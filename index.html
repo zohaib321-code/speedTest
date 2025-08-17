@@ -333,7 +333,7 @@ function drawSpeedometer(speedMbps=0){
 
 // Ping/loss/jitter test
 // Ping/loss/jitter test with standard timeout
-async function testPingLossJitter(count=25, timeoutMs=500){
+async function testPingLossJitter(count=25, timeoutMs=600){
   let pings = [], lost = 0;
 
   for(let i=0; i<count; i++){
