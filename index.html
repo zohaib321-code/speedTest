@@ -16,11 +16,11 @@
   }
 
   #topBanner {
+    display:none;
     width: 970px;
     max-width: 100%;
     height: 90px;
     background: #4ade80;
-    display: flex;
     justify-content: center;
     align-items: center;
     margin: 10px 0;
@@ -69,10 +69,11 @@
   }
 
   #leftAd {
+        display:none;
+
     width: 160px;
     height: 600px;
     background: #facc15;
-    display: flex;
     justify-content: center;
     align-items: center;
     font-weight: bold;
@@ -82,13 +83,16 @@
   }
 
   .rightAds {
-    display: flex;
+        display:none;
+
     flex-direction: column;
     gap: 12px;
     flex-shrink: 0;
   }
 
   .rightAds div {
+        display:none;
+
     width: 300px;
     height: 250px;
     background: #f87171;
@@ -192,24 +196,21 @@
   <div class="content">
     <div id="status">Preparing first test…</div>
 
-    <!-- Progress bar -->
     <div class="progress-container">
       <div class="progress"><div class="bar" id="bar"></div></div>
     </div>
 
-    <!-- Speedometer -->
     <canvas id="speedometer" width="300" height="150"></canvas>
 
     <div id="liveProgress"></div>
 
-    <!-- Results table -->
     <table id="resultsTable">
       <thead>
         <tr>
           <th>Time</th>
           <th>Ping</th>
-          <th>Loss (baseline)</th>
-          <th>Loss (download)</th>
+          <th>Baseline Loss<div>( 400ms )</div></th>
+          <th>Download Loss</th>
           <th>Jitter</th>
           <th>Download</th>
         </tr>
@@ -236,10 +237,8 @@ const ctx = speedometer.getContext("2d");
 
 let countdownTimer;
 
-// Wavy easing
 function wavyEase(t){ return t + 0.05 * Math.sin(12*t*Math.PI); }
 
-// Animate progress bar
 function animateProgress(durationMs,onDone){
   const start = Date.now();
   function step(){
@@ -254,7 +253,6 @@ function animateProgress(durationMs,onDone){
   requestAnimationFrame(step);
 }
 
-// Draw speedometer
 function drawSpeedometer(speedMbps=0){
   const width = speedometer.width;
   const height = speedometer.height;
@@ -324,8 +322,7 @@ function drawSpeedometer(speedMbps=0){
   ctx.fillText(`${speedMbps} Mbps`, centerX, centerY - radius/2 - 10);
 }
 
-// Ping/loss/jitter test
-async function testPingLossJitter(count=25, timeoutMs=600){
+async function testPingLossJitter(count=25, timeoutMs=400){
   let pings = [], lost = 0;
   for(let i=0;i<count;i++){
     liveProgress.textContent = `Pinging${'.'.repeat(i%3+1)}`;
@@ -352,13 +349,14 @@ async function testPingLossJitter(count=25, timeoutMs=600){
   return {ping: avgPing, loss, jitter};
 }
 
-// Download test with packet loss tracking
-async function testDownload(durationMs=18000, timeoutMs=600){
+async function testDownload(durationMs=18000, chunkTimeout=500){
   return new Promise(resolve=>{
     let url="https://speed.cloudflare.com/__down?bytes=50000000&nocache="+Math.random();
     let controller=new AbortController();
     let bytesReceived=0;
     let lostChunks=0;
+    let prevTime=performance.now();
+    let chunkCount=0;
     let startTime=performance.now();
 
     fetch(url,{signal:controller.signal}).then(response=>{
@@ -366,11 +364,13 @@ async function testDownload(durationMs=18000, timeoutMs=600){
       function pump(){
         reader.read().then(({done,value})=>{
           if(done) return;
-          const chunkStart = performance.now();
           bytesReceived+=value.length;
-          const elapsedChunk = performance.now() - chunkStart;
-          if(elapsedChunk>timeoutMs) lostChunks++;
-          let elapsed=(performance.now()-startTime)/1000;
+          const now = performance.now();
+          const delta = now - prevTime;
+          prevTime = now;
+          chunkCount++;
+          if(delta > chunkTimeout) lostChunks++;
+          let elapsed=(now-startTime)/1000;
           let mbps = ((bytesReceived*8)/(elapsed*1000000)).toFixed(2);
           liveProgress.textContent=`Downloading… ${(bytesReceived/(1024*1024)).toFixed(2)} MB`;
           drawSpeedometer(Number(mbps));
@@ -385,13 +385,12 @@ async function testDownload(durationMs=18000, timeoutMs=600){
       let elapsed=(performance.now()-startTime)/1000;
       let mbps=((bytesReceived*8)/(elapsed*1000000)).toFixed(2);
       drawSpeedometer(Number(mbps));
-      let lossDownload = ((lostChunks/Math.max(bytesReceived/1024,1))*100).toFixed(0) + " %";
-      resolve({mbps, lossDownload});
+let gameLoss = chunkCount > 0 ? ((lostChunks/chunkCount)*100).toFixed(0) + " %" : "100 %";
+      resolve({mbps, lossDownload: gameLoss});
     },durationMs);
   });
 }
 
-// Countdown
 function startCountdown(seconds=60){
   clearInterval(countdownTimer);
   let end = Date.now() + seconds*1000;
@@ -402,7 +401,6 @@ function startCountdown(seconds=60){
   },200);
 }
 
-// Run full test
 async function runSpeedTest(){
   rerunBtn.disabled=true;
   statusEl.textContent="Running full test…";
@@ -411,7 +409,7 @@ async function runSpeedTest(){
   drawSpeedometer(0);
 
   const baseline = await testPingLossJitter();
-  let downloadPromise = testDownload(18000);
+  let downloadPromise = testDownload(18000,500);
   animateProgress(17000);
   const downloadResult = await downloadPromise;
 
