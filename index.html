@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smoother Speed Test</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #181820, #202030, #1a1f2f);
+    color: #e0e6f0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  #topBanner {
+    width: 970px;
+    max-width: 100%;
+    height: 90px;
+    background: #4ade80;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 10px 0;
+    font-weight: bold;
+    color: #000;
+    border-radius: 6px;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px;
+    width: 1150px;
+    max-width: 100%;
+    background: rgba(40, 40, 60, 0.9);
+    backdrop-filter: blur(6px);
+    color: #fff;
+    font-weight: bold;
+    border-radius: 6px;
+    gap: 10px;
+  }
+
+  #countdown { font-weight: bold; color: #4ade80; }
+  #rerunBtn {
+    padding: 6px 16px;
+    font-size: 0.9em;
+    font-weight: bold;
+    background:#3b82f6;
+    color:#fff;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+  }
+
+  #status { padding: 18px; font-size: 1.1em; color: #93c5fd; }
+
+  .main-container {
+    display: flex;
+    width: 1200px;
+    max-width: 100%;
+    gap: 25px;
+    margin: 10px 0;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  #leftAd {
+    width: 160px;
+    height: 600px;
+    background: #facc15;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    color: #000;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  .rightAds {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .rightAds div {
+    width: 300px;
+    height: 250px;
+    background: #f87171;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    color: #000;
+    border-radius: 6px;
+  }
+
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    min-width: 300px;
+    max-width: 700px;
+  }
+
+  .progress-container {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+    width: 100%;
+  }
+
+  .progress {
+    width: 100%;
+    height: 26px;
+    background: #2d2d3a;
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 6px rgba(0,0,0,0.5) inset;
+  }
+
+  .progress .bar {
+    height: 100%;
+    width: 0%;
+    border-radius: 14px;
+    position: relative;
+    transition: width 0.2s linear, background 0.5s linear;
+    background: #3b82f6;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(45, 45, 70, 0.8);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  }
+
+  th, td {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 10px;
+    text-align: center;
+  }
+
+  th {
+    background: #374151;
+    color: #f3f4f6;
+    font-weight: 600;
+  }
+
+  tr:nth-child(even) { background: rgba(255,255,255,0.03); }
+  tr:hover { background: rgba(99, 102, 241, 0.2); }
+
+  #liveProgress { color: #fef08a; font-weight: bold; min-height: 1.2em; }
+
+  @media (max-width: 1300px) {
+    .main-container { flex-wrap: wrap; justify-content: center; }
+    #leftAd, .rightAds { width: auto; height: auto; display: flex; justify-content: center; }
+    .rightAds > div { height: 250px; }
+  }
+
+  @media (max-width: 900px) {
+    .main-container { flex-direction: column; align-items: center; gap: 20px; }
+    #leftAd { width: 100%; height: 160px; }
+    .rightAds { flex-direction: row; width: 100%; gap: 12px; }
+    .rightAds > div { width: 100%; height: 150px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="topBanner">Top Banner Ad (970x90)</div>
+
+<header>
+  <div>Custom Speed Test</div>
+  <div id="countdown">Next test in 60s</div>
+  <button id="rerunBtn">Run Test Now</button>
+</header>
+
+<div class="main-container">
+  <div id="leftAd">Left Ad (160x600)</div>
+
+  <div class="content">
+    <div id="status">Preparing first test…</div>
+
+    <!-- Progress bar -->
+    <div class="progress-container">
+      <div class="progress"><div class="bar" id="bar"></div></div>
+    </div>
+
+    <!-- Speedometer -->
+    <canvas id="speedometer" width="300" height="150"></canvas>
+
+    <div id="liveProgress"></div>
+
+    <!-- Results table -->
+    <table id="resultsTable">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Ping (ms)</th>
+          <th>Loss (%)</th>
+          <th>Jitter (ms)</th>
+          <th>Download (Mbps)</th>
+        </tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="rightAds">
+    <div>Right Ad 1 (300x250)</div>
+    <div>Right Ad 2 (300x250)</div>
+  </div>
+</div>
+
+<script>
+const bar = document.getElementById("bar");
+const statusEl = document.getElementById("status");
+const liveProgress = document.getElementById("liveProgress");
+const resultsBody = document.getElementById("resultsBody");
+const countdownEl = document.getElementById("countdown");
+const rerunBtn = document.getElementById("rerunBtn");
+const speedometer = document.getElementById("speedometer");
+const ctx = speedometer.getContext("2d");
+
+let countdownTimer;
+
+// Wavy easing
+function wavyEase(t){ return t + 0.05 * Math.sin(12*t*Math.PI); }
+
+// Animate progress bar
+function animateProgress(durationMs,onDone){
+  const start = Date.now();
+  function step(){
+    let elapsed = Date.now() - start;
+    let t = Math.min(elapsed/durationMs,1);
+    let eased = wavyEase(t);
+    bar.style.width = (Math.min(eased,1)*100).toFixed(2) + "%";
+    bar.style.background = `linear-gradient(90deg,#3b82f6,#3b82f6)`; 
+    if(t < 1) requestAnimationFrame(step);
+    else if(onDone) onDone();
+  }
+  requestAnimationFrame(step);
+}
+
+// Draw speedometer with marks
+function drawSpeedometer(speedMbps=0){
+  const width = speedometer.width;
+  const height = speedometer.height;
+  const centerX = width/2;
+  const centerY = height-10;
+  const radius = width/2 - 20;
+  const maxSpeed = 50;
+  ctx.clearRect(0,0,width,height);
+
+  // Background arc
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, Math.PI, 2*Math.PI);
+  ctx.lineWidth = 12;
+  ctx.strokeStyle = "#2d2d3a";
+  ctx.lineCap = "round";
+  ctx.stroke();
+
+  // Tick marks
+  ctx.strokeStyle = "#3b82f6";
+  ctx.lineWidth = 2;
+  ctx.font = "12px Arial";
+  ctx.fillStyle = "#3b82f6";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  for(let i=0;i<=maxSpeed;i+=5){
+    const angle = Math.PI + (i/maxSpeed)*Math.PI;
+    const innerR = radius - 6;
+    const outerR = radius + 2;
+    const x1 = centerX + innerR*Math.cos(angle);
+    const y1 = centerY + innerR*Math.sin(angle);
+    const x2 = centerX + outerR*Math.cos(angle);
+    const y2 = centerY + outerR*Math.sin(angle);
+    ctx.beginPath();
+    ctx.moveTo(x1,y1);
+    ctx.lineTo(x2,y2);
+    ctx.stroke();
+
+    // Label every 10 Mbps
+    if(i % 10 === 0){
+      const lx = centerX + (radius - 20)*Math.cos(angle);
+      const ly = centerY + (radius - 20)*Math.sin(angle)-5;
+      ctx.fillText(i, lx, ly);
+    }
+  }
+
+  // Speed arc
+  const angle = Math.PI + (Math.min(speedMbps,maxSpeed)/maxSpeed)*Math.PI;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, Math.PI, angle);
+  ctx.lineWidth = 12;
+  ctx.strokeStyle = "#3b82f6";
+  ctx.lineCap = "round";
+  ctx.stroke();
+
+  // Needle
+  const needleLength = radius - 5;
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.lineTo(centerX + needleLength * Math.cos(angle), centerY + needleLength * Math.sin(angle));
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#3b82f6";
+  ctx.lineCap = "round";
+  ctx.stroke();
+
+  // Center pin
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, 5, 0, 2*Math.PI);
+  ctx.fillStyle = "#3b82f6";
+  ctx.fill();
+
+  // Speed text below needle
+  ctx.font = "16px Arial";
+  ctx.fillStyle = "#3b82f6";
+  ctx.textAlign = "center";
+  ctx.fillText(`${speedMbps} Mbps`, centerX, centerY - radius/2 - 10);
+}
+
+// Ping/loss/jitter test
+async function testPingLossJitter(count=25){
+  let pings=[], lost=0;
+  for(let i=0;i<count;i++){
+    liveProgress.textContent=`Pinging${'.'.repeat(i%3+1)}`;
+    const start=performance.now();
+    try{
+      await fetch("https://www.cloudflare.com/cdn-cgi/trace?rand="+Math.random(),{cache:"no-store"});
+      pings.push(performance.now()-start);
+    }catch{ lost++; }
+  }
+  let avgPing=pings.length?(pings.reduce((a,b)=>a+b,0)/pings.length).toFixed(1):"N/A";
+  let jitter="N/A";
+  if(pings.length>1){
+    let diffs=[];
+    for(let i=1;i<pings.length;i++) diffs.push(Math.abs(pings[i]-pings[i-1]));
+    jitter=(diffs.reduce((a,b)=>a+b,0)/diffs.length).toFixed(1);
+  }
+  let loss=((lost/count)*100).toFixed(0);
+  return {ping:avgPing,loss,jitter};
+}
+
+// Download test
+async function testDownload(durationMs=18000){
+  return new Promise(resolve=>{
+    let url="https://speed.cloudflare.com/__down?bytes=50000000&nocache="+Math.random();
+    let controller=new AbortController();
+    let bytesReceived=0;
+    let startTime=performance.now();
+
+    fetch(url,{signal:controller.signal}).then(response=>{
+      const reader=response.body.getReader();
+      function pump(){
+        reader.read().then(({done,value})=>{
+          if(done) return;
+          bytesReceived+=value.length;
+          let elapsed=(performance.now()-startTime)/1000;
+          let mbps = ((bytesReceived*8)/(elapsed*1000000)).toFixed(2);
+          liveProgress.textContent=`Downloading… ${(bytesReceived/(1024*1024)).toFixed(2)} MB`;
+          drawSpeedometer(Number(mbps));
+          pump();
+        });
+      }
+      pump();
+    }).catch(()=>{});
+
+    setTimeout(()=>{
+      controller.abort();
+      let elapsed=(performance.now()-startTime)/1000;
+      let mbps=((bytesReceived*8)/(elapsed*1000000)).toFixed(2);
+      drawSpeedometer(Number(mbps));
+      resolve(mbps);
+    },durationMs);
+  });
+}
+
+// Countdown
+function startCountdown(seconds=60){
+  clearInterval(countdownTimer);
+  let end = Date.now() + seconds*1000;
+  countdownTimer = setInterval(()=>{
+    let remain = Math.max(0, Math.round((end-Date.now())/1000));
+    countdownEl.textContent = `Next test in ${remain}s`;
+    if(remain<=0){ clearInterval(countdownTimer); runSpeedTest(); }
+  },200);
+}
+
+// Run full test
+async function runSpeedTest(){
+  rerunBtn.disabled=true;
+  statusEl.textContent="Running full test…";
+  liveProgress.textContent="";
+  bar.style.width="0%";
+  drawSpeedometer(0);
+
+  const {ping,loss,jitter} = await testPingLossJitter();
+  let downloadPromise = testDownload(18000);
+  animateProgress(17000);
+
+  const download = await downloadPromise;
+
+  statusEl.textContent = "Test complete ✔";
+  const row = document.createElement("tr");
+  row.innerHTML = `
+    <td>${new Date().toLocaleTimeString()}</td>
+    <td>${ping}</td>
+    <td>${loss}</td>
+    <td>${jitter}</td>
+    <td style="color:${download>50?'#fef08a':'inherit'}">${download}</td>
+  `;
+  resultsBody.appendChild(row);
+
+  bar.style.transition="width 0.3s ease";
+  bar.style.width="0%";
+  
+  // Reset speedometer to 0
+  drawSpeedometer(0);
+
+  rerunBtn.disabled = false;
+  startCountdown();
+}
+
+// Run now button
+rerunBtn.addEventListener("click", () => {
+  clearInterval(countdownTimer);
+  countdownEl.textContent = `Next test in 0s`;
+  runSpeedTest();
+});
+
+// Initial run
+runSpeedTest();
+</script>
+
+</body>
+</html>
